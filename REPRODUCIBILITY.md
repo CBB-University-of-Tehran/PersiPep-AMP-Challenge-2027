@@ -102,7 +102,7 @@ Environment: Google Colab
 
 Notebook:
 ```text
-notebooks/00_cleaning/AMP_Challenge_MultiBatch_Clean_Pool_Builder_v2.ipynb
+notebooks/00_cleaning/AMP_Challenge_MultiBatch_Clean_Pool_Builder.ipynb
 ```
 
 Inputs:
