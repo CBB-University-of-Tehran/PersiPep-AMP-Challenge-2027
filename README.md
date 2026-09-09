@@ -1,23 +1,9 @@
-# PersiPep, AMP Challenge 2027
+# PersiPep — AMP Challenge 2027
 
 **PersiPep** is a submission to the  
 **AMP Challenge — International Competition for Generative AI in Antimicrobial Peptide Design**.
 
 PersiPep combines large-scale antimicrobial peptide generation with sequence cleaning, novelty assessment, physicochemical screening, predicted antimicrobial potency, safety assessment, biological representation, synthesizability analysis, diversity assessment, and multi-objective final ranking.
-
----
-
-## Team
-
-All individuals listed below are members of the **PersiPep team**.  
-Role labels indicate project responsibilities only.
-
-| Name | Role |
-|---|---|
-| **Fereshteh Noroozi Tiyoula** | Team Member |
-| **Marzieh Gholami** | Team Member |
-| **Shohre Ariaeenejad** | Academic Supervisor |
-| **Kaveh Kavousi** | Academic Supervisor |
 
 ---
 
@@ -31,13 +17,27 @@ Role labels indicate project responsibilities only.
 
 ---
 
+## Team
+
+All individuals listed below are members of the **PersiPep team**.  
+Role labels indicate project responsibilities only.
+
+| Name | Role |
+|---|---|
+| **Fereshteh Noroozi Tiyoula** | Team Member |
+| **Marzieh Gholami** | Team Member |
+| **Kaveh Kavousi** | Academic Supervisor |
+| **Shohre Ariaeenejad** | Academic Supervisor |
+
+---
+
 ## Overview
 
 The PersiPep workflow was designed as a multi-stage peptide generation and candidate-selection pipeline.
 
 The final production peptide pool was generated using the pretrained **HydrAMP** model.
 
-Five independent HydrAMP generation batches were initiated using fixed starting seeds:
+Five independent HydrAMP generation batches were initiated using the fixed starting seeds:
 
 ```text
 42, 44, 46, 48, 50
@@ -51,7 +51,7 @@ Each batch targeted 50,000 peptide sequences, resulting in an initial production
 
 The generated sequences were subsequently processed through:
 
-1. sequence cleaning and reference filtering;
+1. sequence cleaning and competition-reference filtering;
 2. external AMP novelty assessment;
 3. physicochemical realism scoring;
 4. APEX antimicrobial potency prediction;
@@ -722,7 +722,7 @@ Starter-kit revision:
 7804df862872ccc6d09fe01c41bafbca194cfa31
 ```
 
-HydrAMP source revision:
+HydrAMP revision:
 
 ```text
 6590d2f4c2963f25d30669052a4c4a857e0e7279
