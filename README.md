@@ -81,6 +81,11 @@ containing:
 ```text
 PersiPep-AMP-Challenge-2027/
 │
+├── artifacts/
+│   └── pepsysco/
+│       ├── result.csv
+│       └── README.md
+│
 ├── checkpoint/
 │   ├── model/
 │   ├── pca_decomposer.joblib
@@ -110,8 +115,20 @@ PersiPep-AMP-Challenge-2027/
 ├── scripts/
 │   ├── apex/
 │   │   └── run_apex_120k.py
-│   └── hemopi2/
-│       └── run_hemopi2_60k.py
+│   ├── hemopi2/
+│   │   └── run_hemopi2_60k.py
+│   └── pipeline/
+│       ├── 01_cleaning.py
+│       ├── 02_external_novelty.py
+│       ├── 03_physchem_preselection.py
+│       ├── 04_apex_preselection.py
+│       ├── 05_esm2_embedding_extraction.py
+│       ├── 06_biological_embedding_scoring.py
+│       ├── 07_pepsysco_synthesizability.py
+│       ├── 08_diversity_assessment.py
+│       ├── 09_final_selection.py
+│       ├── _notebook_runner.py
+│       └── README.md
 │
 ├── src/
 │   └── persipep_amp_challenge/
@@ -126,6 +143,7 @@ PersiPep-AMP-Challenge-2027/
 ├── REPRODUCIBILITY.md
 └── pyproject.toml
 ```
+
 
 ---
 
@@ -500,13 +518,49 @@ Notebook:
 notebooks/05_synthesizability/05_pepsysco_synthesizability.ipynb
 ```
 
+Pipeline implementation:
+
+```text
+scripts/pipeline/07_pepsysco_synthesizability.py
+```
+
 PepSySco was used to assess peptide synthesizability.
 
-Primary output:
+All 60,000 candidates were within the validated 8–25 residue length domain used for this stage.
+
+The notebook exported the peptide sequences as:
+
+```text
+STEP10_PEPSYSCO_INPUT_8_25.txt
+```
+
+The exported sequences were submitted to the external PepSySco web service. The exact returned result used in the PersiPep workflow is preserved in this repository as:
+
+```text
+artifacts/pepsysco/result.csv
+```
+
+The preserved web-service output contains the columns:
+
+```text
+peptide
+score
+```
+
+This fixed artifact is used by the downstream PersiPep workflow to merge PepSySco synthesizability scores back onto the 60,000-candidate dataset.
+
+Because PepSySco inference was performed through an external web service rather than through a locally executed model, the original web-service result is retained as a reproducibility artifact. Its provenance and role in the workflow are documented in:
+
+```text
+artifacts/pepsysco/README.md
+```
+
+Primary merged output:
 
 ```text
 STEP10_60K_WITH_PEPSYSCO_SYNTHESIZABILITY.csv
 ```
+
 
 ---
 
@@ -638,6 +692,7 @@ The reproducibility documentation records:
 - notebook execution order;
 - intermediate file mapping;
 - external reference usage;
+- preserved PepSySco web-service artifact;
 - final output mapping;
 - SHA256 checksums.
 
@@ -649,7 +704,7 @@ A reproducible execution therefore follows the documented stage order and uses t
 
 # Challenge Entry Point
 
-The repository defines the AMP Challenge entry point:
+The repository defines the AMP Challenge command-line entry point:
 
 ```bash
 uv run generate
@@ -661,18 +716,21 @@ through:
 src/persipep_amp_challenge/generate.py
 ```
 
-The required challenge-facing outputs are:
+The required challenge-facing files are:
 
 ```text
 generate/library.fasta
 generate/top.fasta
 ```
 
-The generation entry point uses a fixed deterministic configuration.
+At the current packaging stage, the root entry point validates the committed challenge-facing FASTA files, including sequence counts, uniqueness, standard amino-acid alphabet, allowed sequence lengths, and SHA256 integrity reporting.
 
-The root entry point and dependency lock file will be validated against the official AMP Challenge reproducibility procedure before final submission.
+The complete scientific workflow remains reproducible through the documented stage order and component-specific environments described in `REPRODUCIBILITY.md`.
 
-> The detailed multi-stage scientific workflow remains documented separately in `REPRODUCIBILITY.md` because individual pipeline components require different execution environments.
+The root challenge entry point, dependency lock file, and end-to-end packaging will be validated against the official AMP Challenge reproducibility procedure before final submission.
+
+> The scientific workflow itself was genuinely executed across multiple environments. The root entry point is a packaging layer and does not replace the stage-specific provenance recorded in `REPRODUCIBILITY.md`.
+
 
 ---
 
@@ -777,6 +835,12 @@ A concise scientific report describing the implemented PersiPep methodology and 
 
 ```text
 docs/
+```
+
+PepSySco web-service artifact provenance is documented under:
+
+```text
+artifacts/pepsysco/README.md
 ```
 
 ---
