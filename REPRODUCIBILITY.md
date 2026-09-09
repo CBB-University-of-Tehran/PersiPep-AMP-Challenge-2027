@@ -4,7 +4,8 @@ This document describes the actual computational workflow used to produce the Pe
 
 The workflow is multi-environment:
 - University server for HydrAMP generation, APEX scoring, and HemoPI2 scoring.
-- Google Colab for cleaning, novelty analysis, physicochemical scoring, ESM-2 analyses, PepSySco, diversity analysis, and final selection.
+- Google Colab for cleaning, novelty analysis, physicochemical scoring, ESM-2 analyses, PepSySco integration, diversity analysis, and final selection.
+- External PepSySco web service for PepSySco synthesizability inference.
 
 The steps below should be executed in order.
 
@@ -16,12 +17,14 @@ generate/top.fasta
 ```
 
 These correspond to:
+
 ```text
 STEP12_FINAL_LIBRARY_50K.fasta
 STEP12_FINAL_TOP100.fasta
 ```
 
 Recorded SHA-256 values:
+
 ```text
 92cb18fa4b138dd689d3761b0c93d8cc31123269e00d3f76db7db2315f054f26  generate/library.fasta
 a75a0916d02eb87a1b058c06e7851bc4c329b25f0ab2db40bae1664753706fa5  generate/top.fasta
@@ -30,11 +33,13 @@ a75a0916d02eb87a1b058c06e7851bc4c329b25f0ab2db40bae1664753706fa5  generate/top.f
 ## Required reference data
 
 Distributed in this repository:
+
 ```text
 data/antibacterial.fasta
 ```
 
 External AMP databases used by the workflow:
+
 ```text
 ADP6.fasta
 DBAASP.fasta
@@ -50,6 +55,7 @@ These external database dumps are not redistributed in this repository. Obtain t
 Environment: University server
 
 HydrAMP resources in this repository:
+
 ```text
 checkpoint/
 ├── model/
@@ -58,11 +64,13 @@ checkpoint/
 ```
 
 HydrAMP Starter Kit commit used:
+
 ```text
 7804df862872ccc6d09fe01c41bafbca194cfa31
 ```
 
 Underlying HydrAMP package commit:
+
 ```text
 6590d2f4c2963f25d30669052a4c4a857e0e7279
 ```
@@ -70,6 +78,7 @@ Underlying HydrAMP package commit:
 Five 50,000-sequence batches were generated with starting seeds 42, 44, 46, 48, and 50.
 
 Original commands:
+
 ```bash
 cd ~/AMP/01_models/hydramp
 
@@ -86,6 +95,7 @@ uv run generate_broad_spectrum --n-sequences 50000 --top-k 100 --seed 50
 ```
 
 Preserved production files:
+
 ```text
 hydramp_batch1_seed42.fasta
 hydramp_batch2_seed44.fasta
@@ -101,11 +111,19 @@ The HydrAMP model-specific Top100 outputs were retained only for traceability an
 Environment: Google Colab
 
 Notebook:
+
 ```text
 notebooks/00_cleaning/AMP_Challenge_MultiBatch_Clean_Pool_Builder.ipynb
 ```
 
+Pipeline script:
+
+```text
+scripts/pipeline/01_cleaning.py
+```
+
 Inputs:
+
 ```text
 hydramp_batch1_seed42.fasta
 hydramp_batch2_seed44.fasta
@@ -119,12 +137,14 @@ dbAMP3.fasta
 ```
 
 Outputs:
+
 ```text
 MULTIBATCH_5__filtered_against__ADP6__DBAASP__antibacterial__dbAMP3__ALL_CLEAN.csv
 MULTIBATCH_5__filtered_against__ADP6__DBAASP__antibacterial__dbAMP3__ALL_CLEAN.fasta
 ```
 
 Expected retained count:
+
 ```text
 246,795
 ```
@@ -134,16 +154,25 @@ Expected retained count:
 Environment: Google Colab
 
 Notebook:
+
 ```text
 notebooks/01_external_novelty/01_external_known_amp_nearmatch_scoring.ipynb
 ```
 
+Pipeline script:
+
+```text
+scripts/pipeline/02_external_novelty.py
+```
+
 Input:
+
 ```text
 MULTIBATCH_5__filtered_against__ADP6__DBAASP__antibacterial__dbAMP3__ALL_CLEAN.csv
 ```
 
 References:
+
 ```text
 ADP6.fasta
 DBAASP.fasta
@@ -151,6 +180,7 @@ dbAMP3.fasta
 ```
 
 Output:
+
 ```text
 ALL_CLEAN_WITH_EXTERNAL_NEARMATCH.csv
 ```
@@ -162,22 +192,32 @@ This step uses a 3-mer shortlist followed by RapidFuzz similarity scoring. It is
 Environment: Google Colab
 
 Notebook:
+
 ```text
 notebooks/02_physchem_and_preselection/02_physicochemical_realism_and_120k_preselection.ipynb
 ```
 
+Pipeline script:
+
+```text
+scripts/pipeline/03_physchem_preselection.py
+```
+
 Input:
+
 ```text
 ALL_CLEAN_WITH_EXTERNAL_NEARMATCH.csv
 ```
 
 Outputs:
+
 ```text
 ALL_CLEAN_WITH_NEARMATCH_AND_PHYSCHEM.csv
 STEP5B_PRESELECTED_120K.csv
 ```
 
 Expected preselected pool:
+
 ```text
 120,000 sequences
 ```
@@ -187,27 +227,32 @@ Expected preselected pool:
 Environment: University server
 
 Wrapper:
+
 ```text
 scripts/apex/run_apex_120k.py
 ```
 
 Input:
+
 ```text
 STEP5B_PRESELECTED_120K.csv
 ```
 
 Original command:
+
 ```bash
 nohup env OMP_NUM_THREADS=5 MKL_NUM_THREADS=5 OPENBLAS_NUM_THREADS=5 NUMEXPR_NUM_THREADS=5 \
   uv run python run_apex_120k.py > ../apex_120k.log 2>&1 &
 ```
 
 Output:
+
 ```text
 STEP7_120K_WITH_APEX_POTENCY.csv
 ```
 
 Expected integrity:
+
 ```text
 120,000 rows
 120,000 unique sequences
@@ -215,6 +260,7 @@ Expected integrity:
 ```
 
 Recorded input SHA-256:
+
 ```text
 c2c94f15415093e437128b0e82b91b6c82ee5a3395b04c0d2897244a8713e6f8
 ```
@@ -224,21 +270,31 @@ c2c94f15415093e437128b0e82b91b6c82ee5a3395b04c0d2897244a8713e6f8
 Environment: Google Colab
 
 Notebook:
+
 ```text
 notebooks/03_apex_preselection/03_apex_informed_preselection_120k_to_60k.ipynb
 ```
 
+Pipeline script:
+
+```text
+scripts/pipeline/04_apex_preselection.py
+```
+
 Input:
+
 ```text
 STEP7_120K_WITH_APEX_POTENCY.csv
 ```
 
 Output:
+
 ```text
 STEP7B_PRESELECTED_60K.csv
 ```
 
 Expected size:
+
 ```text
 60,000 unique sequences
 ```
@@ -248,27 +304,32 @@ Expected size:
 Environment: University server
 
 Wrapper:
+
 ```text
 scripts/hemopi2/run_hemopi2_60k.py
 ```
 
 Input:
+
 ```text
 STEP7B_PRESELECTED_60K.csv
 ```
 
 Original command:
+
 ```bash
 nohup env OMP_NUM_THREADS=5 MKL_NUM_THREADS=5 OPENBLAS_NUM_THREADS=5 NUMEXPR_NUM_THREADS=5 \
   python run_hemopi2_60k.py > ../hemopi2_60k.log 2>&1 &
 ```
 
 Output:
+
 ```text
 STEP8_60K_WITH_HEMOPI2_HC50.csv
 ```
 
 Expected integrity:
+
 ```text
 60,000 rows
 60,000 unique sequences
@@ -276,6 +337,7 @@ Expected integrity:
 ```
 
 Recorded input SHA-256:
+
 ```text
 4d8bc6b53992afb127c842b3e1e55513833aeff9866c18f441ed1be0ef190231
 ```
@@ -285,16 +347,25 @@ Recorded input SHA-256:
 Environment: Google Colab GPU
 
 Notebook:
+
 ```text
 notebooks/04_esm2_embeddings/04a_esm2_embedding_extraction_60k.ipynb
 ```
 
+Pipeline script:
+
+```text
+scripts/pipeline/05_esm2_embedding_extraction.py
+```
+
 Input:
+
 ```text
 STEP8_60K_WITH_HEMOPI2_HC50.csv
 ```
 
 Model/settings:
+
 ```text
 esm2_t12_35M_UR50D
 layer 12
@@ -304,6 +375,7 @@ batch size 256
 ```
 
 Outputs include:
+
 ```text
 STEP9_ESM2_35M_EMBEDDINGS_60K.npz
 STEP9_ESM2_manifest.json
@@ -314,11 +386,19 @@ STEP9_ESM2_manifest.json
 Environment: Google Colab
 
 Notebook:
+
 ```text
 notebooks/04_esm2_embeddings/04b_biological_embedding_scoring.ipynb
 ```
 
+Pipeline script:
+
+```text
+scripts/pipeline/06_biological_embedding_scoring.py
+```
+
 Model/settings:
+
 ```text
 esm2_t6_8M_UR50D
 layer 6
@@ -328,27 +408,101 @@ cosine similarity
 ```
 
 Output:
+
 ```text
 STEP9B_60K_WITH_BIOLOGICAL_EMBEDDING_SCORES.csv
 ```
 
 Potent-reference criterion:
+
 ```text
 MIC <= 16 µM in at least one tested strain
 ```
 
 ## Step 10 — PepSySco synthesizability
 
-Environment: Google Colab
+Environments:
+- Google Colab for preparation, diagnostics, score integration, and output generation.
+- External PepSySco web service for PepSySco inference.
 
 Notebook:
+
 ```text
 notebooks/05_synthesizability/05_pepsysco_synthesizability.ipynb
 ```
 
-Output:
+Executable integration script:
+
+```text
+scripts/pipeline/07_pepsysco_synthesizability.py
+```
+
+Input candidate table:
+
+```text
+STEP9B_60K_WITH_BIOLOGICAL_EMBEDDING_SCORES.csv
+```
+
+The executed notebook validated the 60,000 candidate sequences and exported the PepSySco input as:
+
+```text
+STEP10_PEPSYSCO_INPUT_8_25.txt
+```
+
+All 60,000 candidates used in this step were within the 8–25 residue PepSySco length domain used by the workflow.
+
+PepSySco inference was performed through the external PepSySco web service. The exact returned web-service file used in the production workflow is preserved in this repository as:
+
+```text
+artifacts/pepsysco/result.csv
+```
+
+The preserved result contains:
+
+```text
+peptide
+score
+```
+
+The integration script does not re-run PepSySco inference locally. Instead, it:
+- validates the 60,000-sequence Step 9B input;
+- recreates the synthesis diagnostic columns used in the notebook;
+- recreates `STEP10_PEPSYSCO_INPUT_8_25.txt`;
+- loads `artifacts/pepsysco/result.csv`;
+- validates one-to-one sequence coverage and score range;
+- merges PepSySco scores back onto the candidate table;
+- writes the Step 10 output and manifest.
+
+Primary output:
+
 ```text
 STEP10_60K_WITH_PEPSYSCO_SYNTHESIZABILITY.csv
+```
+
+Step 10 manifest:
+
+```text
+STEP10_manifest.json
+```
+
+Additional artifact provenance:
+
+```text
+artifacts/pepsysco/README.md
+```
+
+Example repository-script execution:
+
+```bash
+python scripts/pipeline/07_pepsysco_synthesizability.py \
+  --input-csv STEP9B_60K_WITH_BIOLOGICAL_EMBEDDING_SCORES.csv \
+  --output-dir .
+```
+
+By default, the script reads the preserved PepSySco result from:
+
+```text
+artifacts/pepsysco/result.csv
 ```
 
 ## Step 11 — Diversity assessment
@@ -356,11 +510,19 @@ STEP10_60K_WITH_PEPSYSCO_SYNTHESIZABILITY.csv
 Environment: Google Colab
 
 Notebook:
+
 ```text
 notebooks/06_diversity/06_diversity_clustering_assessment.ipynb
 ```
 
+Pipeline script:
+
+```text
+scripts/pipeline/08_diversity_assessment.py
+```
+
 Recorded settings:
+
 ```text
 Nearest-neighbor metric: cosine
 UMAP n_neighbors: 30
@@ -377,11 +539,19 @@ This stage is diagnostic and does not impose a new hard Challenge filter.
 Environment: Google Colab
 
 Notebook:
+
 ```text
 notebooks/07_final_selection/07_final_50k_and_top100_selection.ipynb
 ```
 
+Pipeline script:
+
+```text
+scripts/pipeline/09_final_selection.py
+```
+
 Equal-percentile final aggregation uses six project scoring dimensions:
+
 ```text
 1. APEX predicted potency — lower predicted MIC is better
 2. HemoPI2 predicted HC50 — higher is better
@@ -392,6 +562,7 @@ Equal-percentile final aggregation uses six project scoring dimensions:
 ```
 
 Primary outputs:
+
 ```text
 STEP12_FINAL_LIBRARY_50K_FULL.csv
 STEP12_FINAL_TOP100_FULL.csv
@@ -404,6 +575,7 @@ STEP12_SELECTION_MANIFEST.json
 ```
 
 Repository mapping:
+
 ```text
 STEP12_FINAL_LIBRARY_50K.fasta -> generate/library.fasta
 STEP12_FINAL_TOP100.fasta      -> generate/top.fasta
@@ -412,6 +584,7 @@ STEP12_FINAL_TOP100.fasta      -> generate/top.fasta
 # Final validation
 
 Validate:
+
 ```text
 library.fasta:
 - exactly 50,000 sequences
@@ -428,12 +601,14 @@ top.fasta:
 ```
 
 Checksum verification:
+
 ```bash
 sha256sum generate/library.fasta
 sha256sum generate/top.fasta
 ```
 
 Expected:
+
 ```text
 92cb18fa4b138dd689d3761b0c93d8cc31123269e00d3f76db7db2315f054f26  generate/library.fasta
 a75a0916d02eb87a1b058c06e7851bc4c329b25f0ab2db40bae1664753706fa5  generate/top.fasta
@@ -444,8 +619,11 @@ Finally, run the official AMP Challenge repository/submission verifier and the o
 # Reproducibility notes
 
 1. This guide preserves the actual multi-environment workflow used during the project.
-2. HydrAMP generation, APEX, and HemoPI2 were server stages; the remaining analysis stages were executed in Google Colab.
-3. External AMP databases that are not redistributed must be obtained separately as documented in `data/README.md`.
-4. RapidFuzz near-match similarity is a project diagnostic, not the official Challenge novelty implementation.
-5. The Step 12 internal Top100 diversity pruning is distinct from the organizer's final official known-reference compliance check.
-6. Competition-specific single-command packaging, if required by the final official repository specification, is a separate release-engineering layer and should not be confused with the scientific workflow documented here.
+2. HydrAMP generation, APEX, and HemoPI2 were university-server stages.
+3. Cleaning, novelty analysis, physicochemical scoring, ESM-2 analyses, PepSySco integration, diversity assessment, and final selection were executed in Google Colab.
+4. PepSySco inference itself was performed through the external PepSySco web service; the exact production result is preserved at `artifacts/pepsysco/result.csv`.
+5. External AMP databases that are not redistributed must be obtained separately as documented in `data/README.md`.
+6. RapidFuzz near-match similarity is a project diagnostic, not the official Challenge novelty implementation.
+7. The Step 12 internal Top100 diversity pruning is distinct from the organizer's final official known-reference compliance check.
+8. The scripts under `scripts/pipeline/` provide repository-side executable implementations or wrappers for the documented analysis stages; component-specific dependencies and external services remain documented separately.
+9. Competition-specific single-command packaging is a release-engineering layer and should not be confused with the scientific multi-environment workflow documented here.
