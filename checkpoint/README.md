@@ -1,25 +1,13 @@
-# HydrAMP Model Checkpoint
+# HydrAMP Model Resources
 
-PersiPep uses the pretrained HydrAMP model distributed with the official HydrAMP Starter Kit.
+PersiPep uses the official HydrAMP Starter Kit for sequence generation.
 
-## Upstream source
-
-Repository:
-
+Upstream repository:
 https://github.com/szczurek-lab/hydramp-starter-kit
 
-Exact commit used in this project:
-
+Exact commit used:
 `7804df862872ccc6d09fe01c41bafbca194cfa31`
 
-## Model resources
+The pretrained HydrAMP checkpoint and PCA decomposer are obtained from this exact upstream version.
 
-The generation workflow uses the following upstream checkpoint resources:
-
-```text
-checkpoint/
-├── model/
-│   ├── model_config.json
-│   └── layers/
-│       └── pretrained layer weights
-└── pca_decomposer.joblib
+The PersiPep repository does not redistribute the upstream model files directly. Reproducibility instructions pin the exact upstream commit used for generation.
