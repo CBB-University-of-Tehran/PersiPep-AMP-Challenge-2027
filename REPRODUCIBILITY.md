@@ -11,17 +11,40 @@ The steps below should be executed in order.
 
 ## Final repository outputs
 
+Challenge-facing FASTA outputs:
+
 ```text
 generate/library.fasta
 generate/top.fasta
 ```
 
-These correspond to:
+These correspond to the scientific Step 12 FASTA outputs:
 
 ```text
 STEP12_FINAL_LIBRARY_50K.fasta
 STEP12_FINAL_TOP100.fasta
 ```
+
+Preserved final-selection artifacts used by the root challenge entry point:
+
+```text
+artifacts/final_selection/STEP12_FINAL_LIBRARY_50K_FULL.zip
+artifacts/final_selection/STEP12_FINAL_TOP100_FULL.csv
+```
+
+`STEP12_FINAL_LIBRARY_50K_FULL.zip` contains:
+
+```text
+STEP12_FINAL_LIBRARY_50K_FULL.csv
+```
+
+The root command:
+
+```bash
+uv run generate
+```
+
+deterministically reconstructs `generate/library.fasta` and `generate/top.fasta` from these preserved final-selection artifacts. The reconstructed FASTA files reproduce the original submitted files byte-for-byte.
 
 Recorded SHA-256 values:
 
@@ -581,6 +604,67 @@ STEP12_FINAL_LIBRARY_50K.fasta -> generate/library.fasta
 STEP12_FINAL_TOP100.fasta      -> generate/top.fasta
 ```
 
+Preserved final-selection artifacts:
+
+```text
+STEP12_FINAL_LIBRARY_50K_FULL.csv
+    -> artifacts/final_selection/STEP12_FINAL_LIBRARY_50K_FULL.zip
+
+STEP12_FINAL_TOP100_FULL.csv
+    -> artifacts/final_selection/STEP12_FINAL_TOP100_FULL.csv
+```
+
+The full 50K CSV is stored as a ZIP archive to reduce repository size. The Top-100 full CSV is stored directly. Together they preserve the final ranked selection state used by the challenge-facing reconstruction entry point.
+
+# Deterministic challenge-output reconstruction
+
+The scientific workflow above records how the candidate pool was generated, scored, filtered, and ranked across the original server, Colab, and PepSySco web-service environments.
+
+For challenge packaging, the repository also provides a deterministic root entry point:
+
+```bash
+uv run generate
+```
+
+implemented in:
+
+```text
+src/persipep_amp_challenge/generate.py
+```
+
+The entry point reads:
+
+```text
+artifacts/final_selection/STEP12_FINAL_LIBRARY_50K_FULL.zip
+artifacts/final_selection/STEP12_FINAL_TOP100_FULL.csv
+```
+
+and reconstructs:
+
+```text
+generate/library.fasta
+generate/top.fasta
+```
+
+The 50K library is reconstructed in deterministic `final_library_rank` order from the full final-selection table. The Top-100 order is read from the preserved ranked Top-100 CSV. FASTA headers are reproduced using the original submission naming scheme:
+
+```text
+>AMP_LIBRARY_00001 ... >AMP_LIBRARY_50000
+>AMP_TOP100_00001  ... >AMP_TOP100_00100
+```
+
+The entry point then validates sequence count, standard amino-acid alphabet, length range, uniqueness, and Top-100 membership in the 50K library.
+
+The reconstructed FASTA files were compared against the original challenge-facing files. Sequence sets and sequence order were identical, and after restoring the original FASTA headers the reconstructed files matched the original submission byte-for-byte, including SHA-256.
+
+The current packaging was also tested with the official AMP Challenge repository verifier. The staged repository was cloned by the verifier, dependencies were installed, `uv run generate` was executed, library and Top-100 checks passed, official reference overlap/similarity checks passed, and the generation command was rerun for reproducibility. The verifier reported:
+
+```text
+All checks passed. Submission is valid!
+```
+
+This root reconstruction command is a release-engineering layer over the completed scientific workflow. It does **not** claim to rerun HydrAMP generation, APEX, HemoPI2, ESM-2, PepSySco web-service inference, diversity analysis, or final ranking from raw inputs in a single environment. Those stages remain documented above with their actual execution environments and provenance.
+
 # Final validation
 
 Validate:
@@ -614,7 +698,9 @@ Expected:
 a75a0916d02eb87a1b058c06e7851bc4c329b25f0ab2db40bae1664753706fa5  generate/top.fasta
 ```
 
-Finally, run the official AMP Challenge repository/submission verifier and the official known-reference compliance procedure required by the organizers.
+The current release packaging has been tested with the official AMP Challenge repository/submission verifier and passed all checks, including the verifier's known-reference overlap/similarity checks and reproducibility rerun.
+
+Before final public submission, rerun the official verifier against the final public GitHub repository state to confirm that no later repository change has altered the validated behavior.
 
 # Reproducibility notes
 
@@ -624,6 +710,10 @@ Finally, run the official AMP Challenge repository/submission verifier and the o
 4. PepSySco inference itself was performed through the external PepSySco web service; the exact production result is preserved at `artifacts/pepsysco/result.csv`.
 5. External AMP databases that are not redistributed must be obtained separately as documented in `data/README.md`.
 6. RapidFuzz near-match similarity is a project diagnostic, not the official Challenge novelty implementation.
-7. The Step 12 internal Top100 diversity pruning is distinct from the organizer's final official known-reference compliance check.
+7. The Step 12 internal Top100 diversity pruning is distinct from the organizer's official known-reference compliance check.
 8. The scripts under `scripts/pipeline/` provide repository-side executable implementations or wrappers for the documented analysis stages; component-specific dependencies and external services remain documented separately.
-9. Competition-specific single-command packaging is a release-engineering layer and should not be confused with the scientific multi-environment workflow documented here.
+9. Final-selection state required for exact challenge-output reconstruction is preserved under `artifacts/final_selection/`.
+10. `uv run generate` reconstructs the exact submitted FASTA files from those preserved final-selection artifacts and does not represent a single-environment rerun of the full scientific workflow.
+11. The deterministic reconstruction reproduces the original `generate/library.fasta` and `generate/top.fasta` byte-for-byte, including the recorded SHA-256 values.
+12. The current packaging passed the official AMP Challenge repository verifier in a clean staged clone, including installation, generation, library validation, Top-100 validation, reference overlap/similarity checks, and reproducibility rerun.
+13. The official verifier should be rerun once more against the final public repository state immediately before submission.
