@@ -214,11 +214,8 @@ def read_library_from_zip(
 
             rows = list(reader)
 
-    #
-    # Reconstruct the submitted library
-    # deterministically using the stored
-    # final library rank when available.
-    #
+    # Reconstruct the submitted library deterministically
+    # using final_library_rank when available.
     if (
         rows
         and "final_library_rank"
@@ -361,19 +358,17 @@ def build_outputs_from_artifacts(
             "the 50K library artifact."
         )
 
-    #
-    # Deterministic FASTA writing
-    #
+    # Reproduce the original submitted FASTA headers exactly.
     write_fasta(
         library_sequences,
         library_fasta,
-        "PersiPep",
+        "AMP_LIBRARY",
     )
 
     write_fasta(
         top_sequences,
         top_fasta,
-        "PersiPep_TOP",
+        "AMP_TOP100",
     )
 
     return (
@@ -397,30 +392,23 @@ def main():
         f"{GENERATION_SEEDS}"
     )
 
-    #
     # src/persipep_amp_challenge/generate.py
     # -> repository root
-    #
     root = (
         Path(__file__)
         .resolve()
         .parents[2]
     )
 
-    #
     # Always reconstruct the challenge FASTAs
     # from the preserved final-selection artifacts.
-    #
     library, top100 = (
         build_outputs_from_artifacts(
             root
         )
     )
 
-    #
-    # Read generated FASTAs back
-    # and independently validate them.
-    #
+    # Read generated FASTAs back and validate them.
     library_sequences = read_fasta(
         library
     )
