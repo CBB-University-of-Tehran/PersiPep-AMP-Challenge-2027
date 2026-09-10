@@ -83,13 +83,17 @@ containing:
 PersiPep-AMP-Challenge-2027/
 │
 ├── artifacts/
-│   └── pepsysco/
-│       ├── result.csv
-│       └── README.md
+│   ├── pepsysco/
+│   │   ├── result.csv
+│   │   └── README.md
+│   └── final_selection/
+│       ├── STEP12_FINAL_LIBRARY_50K_FULL.zip
+│       └── STEP12_FINAL_TOP100_FULL.csv
 │
 ├── checkpoint/
 │   ├── model/
 │   ├── pca_decomposer.joblib
+│   ├── LICENSE-HydrAMP
 │   └── README.md
 │
 ├── data/
@@ -142,9 +146,11 @@ PersiPep-AMP-Challenge-2027/
 ├── LICENSE
 ├── README.md
 ├── REPRODUCIBILITY.md
-└── pyproject.toml
+├── pyproject.toml
+└── uv.lock
 ```
 
+The two preserved final-selection artifacts under `artifacts/final_selection/` are used by the root challenge entry point to deterministically reconstruct the submitted FASTA files. The ZIP archive contains the full final 50K selection table, while the Top-100 CSV preserves the ranked Top-100 table used in the final submission.
 
 ---
 
@@ -630,6 +636,15 @@ generate/library.fasta
 generate/top.fasta
 ```
 
+Preserved final-selection artifacts used by the deterministic challenge entry point:
+
+```text
+artifacts/final_selection/STEP12_FINAL_LIBRARY_50K_FULL.zip
+artifacts/final_selection/STEP12_FINAL_TOP100_FULL.csv
+```
+
+The ZIP archive contains `STEP12_FINAL_LIBRARY_50K_FULL.csv`. These artifacts preserve the final ranked selection state needed to reconstruct the submitted FASTA files exactly.
+
 ---
 
 # Final Output Integrity
@@ -694,12 +709,15 @@ The reproducibility documentation records:
 - intermediate file mapping;
 - external reference usage;
 - preserved PepSySco web-service artifact;
+- preserved final-selection artifacts;
+- deterministic challenge-output reconstruction;
 - final output mapping;
-- SHA256 checksums.
+- SHA256 checksums;
+- official verifier validation.
 
-The original scientific workflow uses multiple environments because its computational components have different dependency and hardware requirements.
+The original scientific workflow uses multiple environments because its computational components have different dependency, hardware, and external-service requirements.
 
-A reproducible execution therefore follows the documented stage order and uses the corresponding environment for each stage.
+The root `uv run generate` command therefore serves as a deterministic challenge-packaging and reconstruction layer: it rebuilds the exact submitted FASTA files from the preserved final-selection artifacts. Full stage-by-stage scientific provenance remains documented separately in `REPRODUCIBILITY.md`.
 
 ---
 
@@ -717,21 +735,46 @@ through:
 src/persipep_amp_challenge/generate.py
 ```
 
-The required challenge-facing files are:
+The challenge-facing outputs are:
 
 ```text
 generate/library.fasta
 generate/top.fasta
 ```
 
-At the current packaging stage, the root entry point validates the committed challenge-facing FASTA files, including sequence counts, uniqueness, standard amino-acid alphabet, allowed sequence lengths, and SHA256 integrity reporting.
+The current entry point **reconstructs these FASTA files deterministically** from the preserved final-selection artifacts:
 
-The complete scientific workflow remains reproducible through the documented stage order and component-specific environments described in `REPRODUCIBILITY.md`.
+```text
+artifacts/final_selection/STEP12_FINAL_LIBRARY_50K_FULL.zip
+artifacts/final_selection/STEP12_FINAL_TOP100_FULL.csv
+```
 
-The root challenge entry point, dependency lock file, and end-to-end packaging will be validated against the official AMP Challenge reproducibility procedure before final submission.
+`STEP12_FINAL_LIBRARY_50K_FULL.zip` contains the full final 50K selection CSV. The entry point reads the final library sequences in deterministic `final_library_rank` order, reads the ranked Top-100 sequences from `STEP12_FINAL_TOP100_FULL.csv`, and writes the challenge-facing FASTA files using the original submission headers.
 
-> The scientific workflow itself was genuinely executed across multiple environments. The root entry point is a packaging layer and does not replace the stage-specific provenance recorded in `REPRODUCIBILITY.md`.
+After reconstruction, the entry point validates:
 
+- exactly 50,000 library sequences;
+- exactly 100 Top-100 sequences;
+- standard 20-amino-acid alphabet;
+- allowed sequence lengths;
+- uniqueness;
+- Top-100 membership in the 50K library;
+- deterministic output checksums.
+
+The reconstructed files reproduce the recorded submission artifacts byte-for-byte:
+
+```text
+92cb18fa4b138dd689d3761b0c93d8cc31123269e00d3f76db7db2315f054f26  generate/library.fasta
+a75a0916d02eb87a1b058c06e7851bc4c329b25f0ab2db40bae1664753706fa5  generate/top.fasta
+```
+
+The current packaging was tested with the official AMP Challenge repository verifier. The verifier successfully cloned the staged repository, installed dependencies, ran the generation entry point, checked library and Top-100 validity, checked reference overlap/similarity conditions, reran the entry point for reproducibility, and reported:
+
+```text
+All checks passed. Submission is valid!
+```
+
+This challenge-facing reconstruction layer should not be confused with a complete rerun of the original scientific workflow. The original HydrAMP generation, APEX scoring, HemoPI2 scoring, ESM-2 analyses, PepSySco web-service inference, diversity analysis, and final selection were genuinely executed across the component-specific environments documented in `REPRODUCIBILITY.md`. The preserved final-selection artifacts provide a deterministic bridge from the completed scientific workflow to the exact submitted challenge files.
 
 ---
 
@@ -842,6 +885,12 @@ PepSySco web-service artifact provenance is documented under:
 
 ```text
 artifacts/pepsysco/README.md
+```
+
+Preserved final-selection artifacts used for deterministic challenge-output reconstruction are stored under:
+
+```text
+artifacts/final_selection/
 ```
 
 ---
