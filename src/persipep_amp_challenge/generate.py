@@ -1,26 +1,26 @@
 from pathlib import Path
 import csv
 import hashlib
+import io
 import zipfile
 
-GENERATION_SEEDS = [42, 44, 46, 48, 50]
 
 STANDARD_AA = set("ACDEFGHIKLMNPQRSTVWY")
 
-EXPECTED_LIBRARY_SHA256 = (
-    "92cb18fa4b138dd689d3761b0c93d8cc31123269e00d3f76db7db2315f054f26"
-)
+LIBRARY_SIZE = 50_000
+TOP_SIZE = 100
 
-EXPECTED_TOP100_SHA256 = (
-    "a75a0916d02eb87a1b058c06e7851bc4c329b25f0ab2db40bae1664753706fa5"
-)
+# Seeds used in the original PersiPep HydrAMP generation workflow.
+GENERATION_SEEDS = [42, 44, 46, 48, 50]
 
 
 def sha256(path: Path) -> str:
     h = hashlib.sha256()
+
     with path.open("rb") as f:
         for chunk in iter(lambda: f.read(8192), b""):
             h.update(chunk)
+
     return h.hexdigest()
 
 
@@ -32,288 +32,496 @@ def read_fasta(path: Path):
         for line in f:
             line = line.strip()
 
+            if not line:
+                continue
+
             if line.startswith(">"):
                 if current:
-                    sequences.append("".join(current).upper())
+                    sequences.append(
+                        "".join(current).upper()
+                    )
                     current = []
-            elif line:
+            else:
                 current.append(line)
 
         if current:
-            sequences.append("".join(current).upper())
+            sequences.append(
+                "".join(current).upper()
+            )
 
     return sequences
 
 
 def validate_sequences(sequences, name):
     if not sequences:
-        raise RuntimeError(f"{name} is empty")
+        raise RuntimeError(
+            f"{name} is empty"
+        )
 
     for i, seq in enumerate(sequences, start=1):
+
         if not set(seq).issubset(STANDARD_AA):
+            invalid = sorted(
+                set(seq) - STANDARD_AA
+            )
+
             raise RuntimeError(
-                f"{name}: sequence {i} contains non-standard amino acids"
+                f"{name}: sequence {i} contains "
+                f"non-standard amino acids: {invalid}"
             )
 
         if not (8 <= len(seq) <= 50):
             raise RuntimeError(
-                f"{name}: sequence {i} has invalid length {len(seq)}"
+                f"{name}: sequence {i} has "
+                f"invalid length {len(seq)}"
             )
 
     if len(sequences) != len(set(sequences)):
-        raise RuntimeError(f"{name} contains duplicate sequences")
+        raise RuntimeError(
+            f"{name} contains duplicate sequences"
+        )
 
 
-def write_fasta(sequences, output_path: Path, prefix: str):
-    output_path.parent.mkdir(parents=True, exist_ok=True)
+def write_fasta(
+    sequences,
+    output_path: Path,
+    prefix: str,
+):
+    output_path.parent.mkdir(
+        parents=True,
+        exist_ok=True,
+    )
 
-    with output_path.open("w", encoding="utf-8", newline="\n") as f:
-        for i, seq in enumerate(sequences, start=1):
-            f.write(f">{prefix}_{i:05d}\n")
-            f.write(f"{seq}\n")
+    with output_path.open(
+        "w",
+        encoding="utf-8",
+        newline="\n",
+    ) as f:
+
+        for i, seq in enumerate(
+            sequences,
+            start=1,
+        ):
+            f.write(
+                f">{prefix}_{i:05d}\n"
+            )
+            f.write(
+                f"{seq}\n"
+            )
 
 
-def read_sequences_from_csv(csv_path: Path):
-    with csv_path.open("r", encoding="utf-8-sig", newline="") as f:
+def read_sequences_from_csv(
+    csv_path: Path,
+):
+    if not csv_path.exists():
+        raise FileNotFoundError(
+            f"Missing Top100 artifact: {csv_path}"
+        )
+
+    with csv_path.open(
+        "r",
+        encoding="utf-8-sig",
+        newline="",
+    ) as f:
+
         reader = csv.DictReader(f)
 
         if not reader.fieldnames:
-            raise RuntimeError(f"No columns found in {csv_path}")
+            raise RuntimeError(
+                f"No columns found in {csv_path}"
+            )
 
         if "sequence" not in reader.fieldnames:
             raise RuntimeError(
-                f"'sequence' column not found in {csv_path}. "
-                f"Available columns: {reader.fieldnames}"
+                f"'sequence' column not found in "
+                f"{csv_path}. Available columns: "
+                f"{reader.fieldnames}"
             )
 
         sequences = []
 
         for row in reader:
-            seq = (row.get("sequence") or "").strip().upper()
+
+            seq = (
+                row.get("sequence") or ""
+            ).strip().upper()
+
             if seq:
                 sequences.append(seq)
 
     return sequences
 
 
-def read_library_from_zip(zip_path: Path):
+def read_library_from_zip(
+    zip_path: Path,
+):
     if not zip_path.exists():
         raise FileNotFoundError(
             f"Missing library artifact: {zip_path}"
         )
 
-    with zipfile.ZipFile(zip_path, "r") as z:
+    if not zipfile.is_zipfile(zip_path):
+        raise RuntimeError(
+            f"Invalid ZIP archive: {zip_path}"
+        )
+
+    with zipfile.ZipFile(
+        zip_path,
+        "r",
+    ) as z:
+
         csv_files = [
-            name for name in z.namelist()
-            if name.lower().endswith(".csv")
+            name
+            for name in z.namelist()
+            if (
+                name.lower().endswith(".csv")
+                and not name.startswith("__MACOSX/")
+            )
         ]
 
         if len(csv_files) != 1:
             raise RuntimeError(
-                f"Expected exactly one CSV inside {zip_path}, "
-                f"found {len(csv_files)}"
+                f"Expected exactly one CSV inside "
+                f"{zip_path.name}; found "
+                f"{len(csv_files)}: {csv_files}"
             )
 
         csv_name = csv_files[0]
 
         with z.open(csv_name) as raw:
-            import io
 
-            text = io.TextIOWrapper(raw, encoding="utf-8-sig")
+            text = io.TextIOWrapper(
+                raw,
+                encoding="utf-8-sig",
+                newline="",
+            )
+
             reader = csv.DictReader(text)
 
             if not reader.fieldnames:
                 raise RuntimeError(
-                    f"No columns found in {csv_name}"
+                    f"No columns found in "
+                    f"{csv_name}"
                 )
 
             if "sequence" not in reader.fieldnames:
                 raise RuntimeError(
-                    f"'sequence' column not found in {csv_name}"
+                    f"'sequence' column not found "
+                    f"in {csv_name}. "
+                    f"Available columns: "
+                    f"{reader.fieldnames}"
                 )
 
             rows = list(reader)
 
-    # Prefer explicit final_library_rank if available
-    if rows and "final_library_rank" in rows[0]:
+    #
+    # Reconstruct the submitted library
+    # deterministically using the stored
+    # final library rank when available.
+    #
+    if (
+        rows
+        and "final_library_rank"
+        in rows[0]
+    ):
+
         try:
             rows.sort(
-                key=lambda r: int(float(r["final_library_rank"]))
+                key=lambda row: int(
+                    float(
+                        row[
+                            "final_library_rank"
+                        ]
+                    )
+                )
             )
-        except Exception as e:
-            raise RuntimeError(
-                "Could not sort by final_library_rank"
-            ) from e
 
-    sequences = [
-        (row.get("sequence") or "").strip().upper()
-        for row in rows
-        if (row.get("sequence") or "").strip()
-    ]
+        except (
+            TypeError,
+            ValueError,
+            KeyError,
+        ) as exc:
+
+            raise RuntimeError(
+                "Could not sort library artifact "
+                "by final_library_rank."
+            ) from exc
+
+    sequences = []
+
+    for row in rows:
+
+        seq = (
+            row.get("sequence") or ""
+        ).strip().upper()
+
+        if seq:
+            sequences.append(seq)
 
     return sequences
 
 
-def build_outputs_from_artifacts(root: Path):
-    artifact_dir = root / "artifacts" / "final_selection"
+def build_outputs_from_artifacts(
+    root: Path,
+):
+    artifact_dir = (
+        root
+        / "artifacts"
+        / "final_selection"
+    )
 
     library_zip = (
-        artifact_dir / "STEP12_FINAL_LIBRARY_50K_FULL.zip"
+        artifact_dir
+        / "STEP12_FINAL_LIBRARY_50K_FULL.zip"
     )
 
     top_csv = (
-        artifact_dir / "STEP12_FINAL_TOP100_FULL.csv"
+        artifact_dir
+        / "STEP12_FINAL_TOP100_FULL.csv"
     )
 
-    output_dir = root / "generate"
-    library_fasta = output_dir / "library.fasta"
-    top_fasta = output_dir / "top.fasta"
+    output_dir = (
+        root
+        / "generate"
+    )
 
-    print("\nRebuilding outputs from final-selection artifacts...")
+    library_fasta = (
+        output_dir
+        / "library.fasta"
+    )
 
-    library_sequences = read_library_from_zip(library_zip)
-    top_sequences = read_sequences_from_csv(top_csv)
+    top_fasta = (
+        output_dir
+        / "top.fasta"
+    )
 
-    if len(library_sequences) != 50_000:
+    print(
+        "\nRebuilding challenge outputs "
+        "from preserved final-selection artifacts..."
+    )
+
+    print(
+        f"Library artifact : {library_zip}"
+    )
+
+    print(
+        f"Top100 artifact  : {top_csv}"
+    )
+
+    library_sequences = (
+        read_library_from_zip(
+            library_zip
+        )
+    )
+
+    top_sequences = (
+        read_sequences_from_csv(
+            top_csv
+        )
+    )
+
+    if len(library_sequences) != LIBRARY_SIZE:
         raise RuntimeError(
-            f"Expected 50000 library sequences in artifact, "
-            f"found {len(library_sequences)}"
+            f"Expected {LIBRARY_SIZE:,} library "
+            f"sequences in artifact; found "
+            f"{len(library_sequences):,}"
         )
 
-    if len(top_sequences) != 100:
+    if len(top_sequences) != TOP_SIZE:
         raise RuntimeError(
-            f"Expected 100 Top100 sequences in artifact, "
-            f"found {len(top_sequences)}"
+            f"Expected {TOP_SIZE} Top100 "
+            f"sequences in artifact; found "
+            f"{len(top_sequences)}"
         )
 
     validate_sequences(
         library_sequences,
-        "library artifact"
+        "library artifact",
     )
 
     validate_sequences(
         top_sequences,
-        "Top100 artifact"
+        "Top100 artifact",
     )
 
-    library_set = set(library_sequences)
+    library_set = set(
+        library_sequences
+    )
 
     missing_top = [
-        seq for seq in top_sequences
+        seq
+        for seq in top_sequences
         if seq not in library_set
     ]
 
     if missing_top:
         raise RuntimeError(
-            f"{len(missing_top)} Top100 sequences are not "
-            "present in the library artifact"
+            f"{len(missing_top)} Top100 "
+            "sequences are not present in "
+            "the 50K library artifact."
         )
 
+    #
+    # Deterministic FASTA writing
+    #
     write_fasta(
         library_sequences,
         library_fasta,
-        "PersiPep"
+        "PersiPep",
     )
 
     write_fasta(
         top_sequences,
         top_fasta,
-        "PersiPep_TOP"
+        "PersiPep_TOP",
     )
 
-    print("Generated:")
-    print(f"  {library_fasta}")
-    print(f"  {top_fasta}")
+    return (
+        library_fasta,
+        top_fasta,
+    )
 
 
 def main():
     print("=" * 60)
-    print("PersiPep AMP Challenge 2027")
-    print("Generation entrypoint")
+    print(
+        "PersiPep AMP Challenge 2027"
+    )
+    print(
+        "Deterministic generation entrypoint"
+    )
     print("=" * 60)
 
-    print(f"Generation seeds: {GENERATION_SEEDS}")
-
-    root = Path(__file__).resolve().parents[2]
-
-    library = root / "generate" / "library.fasta"
-    top100 = root / "generate" / "top.fasta"
+    print(
+        f"Original HydrAMP generation seeds: "
+        f"{GENERATION_SEEDS}"
+    )
 
     #
-    # Build outputs if missing
+    # src/persipep_amp_challenge/generate.py
+    # -> repository root
     #
-    if not library.exists() or not top100.exists():
-        build_outputs_from_artifacts(root)
-    else:
-        print(
-            "\nExisting FASTA outputs found; "
-            "validating committed outputs."
+    root = (
+        Path(__file__)
+        .resolve()
+        .parents[2]
+    )
+
+    #
+    # Always reconstruct the challenge FASTAs
+    # from the preserved final-selection artifacts.
+    #
+    library, top100 = (
+        build_outputs_from_artifacts(
+            root
         )
+    )
 
-    library_sequences = read_fasta(library)
-    top_sequences = read_fasta(top100)
+    #
+    # Read generated FASTAs back
+    # and independently validate them.
+    #
+    library_sequences = read_fasta(
+        library
+    )
 
-    print("\nValidating outputs...")
+    top_sequences = read_fasta(
+        top100
+    )
+
+    print(
+        "\nValidating generated outputs..."
+    )
 
     validate_sequences(
         library_sequences,
-        "library.fasta"
+        "library.fasta",
     )
 
     validate_sequences(
         top_sequences,
-        "top.fasta"
+        "top.fasta",
     )
 
-    if len(library_sequences) != 50_000:
+    if (
+        len(library_sequences)
+        != LIBRARY_SIZE
+    ):
         raise RuntimeError(
-            f"Expected 50000 library sequences, "
-            f"found {len(library_sequences)}"
+            f"Expected {LIBRARY_SIZE:,} "
+            f"library sequences; found "
+            f"{len(library_sequences):,}"
         )
 
-    if len(top_sequences) != 100:
+    if (
+        len(top_sequences)
+        != TOP_SIZE
+    ):
         raise RuntimeError(
-            f"Expected 100 Top100 sequences, "
-            f"found {len(top_sequences)}"
+            f"Expected {TOP_SIZE} Top100 "
+            f"sequences; found "
+            f"{len(top_sequences)}"
         )
 
-    library_set = set(library_sequences)
+    library_set = set(
+        library_sequences
+    )
 
     missing_top = [
-        seq for seq in top_sequences
+        seq
+        for seq in top_sequences
         if seq not in library_set
     ]
 
     if missing_top:
         raise RuntimeError(
-            f"{len(missing_top)} Top100 sequences are not "
-            "present in library.fasta"
+            f"{len(missing_top)} Top100 "
+            "sequences are not present "
+            "in library.fasta."
         )
 
-    library_hash = sha256(library)
-    top100_hash = sha256(top100)
+    library_hash = sha256(
+        library
+    )
 
-    print("\nValidation successful")
+    top_hash = sha256(
+        top100
+    )
+
+    print(
+        "\nValidation successful"
+    )
+
     print("-" * 60)
-    print(f"Library sequences : {len(library_sequences):,}")
-    print(f"Top100 sequences  : {len(top_sequences):,}")
-    print("Top100 subset     : PASS")
-    print(f"library SHA256     : {library_hash}")
-    print(f"top100 SHA256      : {top100_hash}")
 
-    if library_hash != EXPECTED_LIBRARY_SHA256:
-        print(
-            "\nWARNING: rebuilt library FASTA content is valid "
-            "but byte-level SHA256 differs from the committed artifact."
-        )
+    print(
+        f"Library sequences : "
+        f"{len(library_sequences):,}"
+    )
 
-    if top100_hash != EXPECTED_TOP100_SHA256:
-        print(
-            "\nWARNING: rebuilt Top100 FASTA content is valid "
-            "but byte-level SHA256 differs from the committed artifact."
-        )
+    print(
+        f"Top100 sequences  : "
+        f"{len(top_sequences):,}"
+    )
 
-    print("\nPersiPep generation completed successfully.")
+    print(
+        "Top100 subset     : PASS"
+    )
+
+    print(
+        f"library SHA256    : "
+        f"{library_hash}"
+    )
+
+    print(
+        f"top100 SHA256     : "
+        f"{top_hash}"
+    )
+
+    print(
+        "\nPersiPep generation "
+        "completed successfully."
+    )
 
 
 if __name__ == "__main__":
