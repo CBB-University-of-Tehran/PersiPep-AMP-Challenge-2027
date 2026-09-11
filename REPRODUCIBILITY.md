@@ -81,10 +81,29 @@ HydrAMP resources in this repository:
 
 ```text
 checkpoint/
-├── model/
-├── pca_decomposer.joblib
-└── README.md
+inference/hydramp/
 ```
+
+The `checkpoint/` tree preserves the pretrained HydrAMP model resources used by PersiPep. The repository-side inference snapshot is kept separately under:
+
+```text
+inference/hydramp/
+├── .python-version
+├── LICENSE
+├── README.md
+├── STARTER_KIT_COMMIT.txt
+├── UPSTREAM_README.md
+├── pyproject.toml
+├── uv.lock
+└── src/
+    └── hydramp_starter_kit/
+        ├── __init__.py
+        └── generate.py
+```
+
+The inference subproject is intentionally isolated from the root challenge environment because the HydrAMP starter kit uses Python 3.8-era dependencies, while the root challenge package uses its own environment.
+
+In the current repository snapshot, the preserved model payload is stored under `checkpoint/model/`, with the serialized model tree and `pca_decomposer.joblib` retained there. For the isolated upstream-style smoke test, those resources were staged into the starter kit's expected runtime paths `checkpoint/model` and `checkpoint/pca_decomposer.joblib`; no model parameters were altered.
 
 HydrAMP Starter Kit commit used:
 
@@ -128,6 +147,54 @@ hydramp_batch5_seed50.fasta
 ```
 
 The HydrAMP model-specific Top100 outputs were retained only for traceability and were not used as the final PersiPep Top100.
+
+### HydrAMP repository-side inference smoke test
+
+The vendored inference snapshot under `inference/hydramp/` was tested independently from the root challenge reconstruction entry point.
+
+A clean isolated Python 3.8 environment was created with `uv`. For the smoke test, the preserved HydrAMP model directory and PCA decomposer were staged in the layout expected by the upstream starter kit:
+
+```text
+checkpoint/
+├── model/
+└── pca_decomposer.joblib
+```
+
+and the official competition reference was staged as:
+
+```text
+data/antibacterial.fasta
+```
+
+The inference implementation sets:
+
+```python
+os.environ["MPLBACKEND"] = "Agg"
+```
+
+before importing HydrAMP/TensorFlow/Matplotlib. This avoids notebook-backend import failures in Colab and other headless environments.
+
+Successful smoke-test command:
+
+```bash
+uv run --no-sync generate_broad_spectrum \
+  --n-sequences 100 \
+  --top-k 1 \
+  --seed 42
+```
+
+Observed result:
+
+```text
+Generating 100 sequences (seed=42)
+...
+seed 42: 100/100 collected
+Wrote 100 sequences -> generate_broad_spectrum/library.fasta
+Wrote top 1 sequences -> generate_broad_spectrum/top.fasta
+```
+
+This smoke test confirms that the preserved HydrAMP inference code can load the model/PCA resources and perform real sequence generation. It is not a rerun of the five 50,000-sequence production batches and does not replace the production provenance above.
+
 
 ## Step 2 — Cleaning and reference screening
 
@@ -716,4 +783,6 @@ Before final public submission, rerun the official verifier against the final pu
 10. `uv run generate` reconstructs the exact submitted FASTA files from those preserved final-selection artifacts and does not represent a single-environment rerun of the full scientific workflow.
 11. The deterministic reconstruction reproduces the original `generate/library.fasta` and `generate/top.fasta` byte-for-byte, including the recorded SHA-256 values.
 12. The current packaging passed the official AMP Challenge repository verifier in a clean staged clone, including installation, generation, library validation, Top-100 validation, reference overlap/similarity checks, and reproducibility rerun.
-13. The official verifier should be rerun once more against the final public repository state immediately before submission.
+13. HydrAMP inference code and its isolated environment are preserved under `inference/hydramp/`; an independent Python 3.8 smoke test successfully generated 100 sequences with seed 42 and produced a filtered Top-1 FASTA.
+14. The HydrAMP smoke test verifies executable inference and checkpoint loading, but it is intentionally smaller than the original five 50,000-sequence production runs.
+15. The official verifier should be rerun once more against the final public repository state immediately before submission.
