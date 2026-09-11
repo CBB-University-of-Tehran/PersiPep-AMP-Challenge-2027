@@ -258,14 +258,20 @@ inference/hydramp/
 
 This subproject vendors the HydrAMP starter-kit snapshot used for PersiPep, including its isolated Python version, `pyproject.toml`, `uv.lock`, license, provenance files, and the `generate_broad_spectrum` inference implementation under `src/hydramp_starter_kit/generate.py`.
 
-The HydrAMP inference package was smoke-tested independently in an isolated Python 3.8 environment using the preserved checkpoint resources and the official `data/antibacterial.fasta`. The test generated 100 candidates with seed 42 and successfully produced a filtered Top-1 candidate:
+The HydrAMP inference package was smoke-tested independently in an isolated
+Python 3.8 environment using the preserved checkpoint resources and the
+official `data/antibacterial.fasta`.
+
+From the repository root:
 
 ```bash
+cd inference/hydramp
+uv sync
+
 uv run --no-sync generate_broad_spectrum \
   --n-sequences 100 \
   --top-k 1 \
   --seed 42
-```
 
 The inference script forces the non-interactive Matplotlib `Agg` backend before importing HydrAMP so that it runs correctly in notebook/headless environments.
 
