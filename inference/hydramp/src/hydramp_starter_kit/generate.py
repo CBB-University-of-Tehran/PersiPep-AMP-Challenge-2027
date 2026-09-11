@@ -29,9 +29,11 @@ import Levenshtein
 
 CATEGORY = "generate_broad_spectrum"
 
-MODEL_PATH = "checkpoint/model"
-DECOMPOSER_PATH = "checkpoint/pca_decomposer.joblib"
-ANTIBACTERIAL_FASTA = "data/antibacterial.fasta"
+REPO_ROOT = Path(__file__).resolve().parents[4]
+
+MODEL_PATH = REPO_ROOT / "checkpoint" / "model" / "model"
+DECOMPOSER_PATH = REPO_ROOT / "checkpoint" / "model" / "pca_decomposer.joblib"
+ANTIBACTERIAL_FASTA = REPO_ROOT / "data" / "antibacterial.fasta"
 
 STANDARD_AMINO_ACIDS = set("ACDEFGHIKLMNPQRSTVWY")
 
