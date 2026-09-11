@@ -272,6 +272,9 @@ uv run --no-sync generate_broad_spectrum \
   --n-sequences 100 \
   --top-k 1 \
   --seed 42
+```
+
+The smoke test generated 100 candidates with seed 42 and successfully wrote both `generate_broad_spectrum/library.fasta` and a filtered Top-1 `generate_broad_spectrum/top.fasta`.
 
 The inference script forces the non-interactive Matplotlib `Agg` backend before importing HydrAMP so that it runs correctly in notebook/headless environments.
 
