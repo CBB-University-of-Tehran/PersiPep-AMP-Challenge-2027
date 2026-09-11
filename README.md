@@ -35,8 +35,8 @@ Role labels indicate project responsibilities only.
 
 The final PersiPep challenge sequences are located at:
 
- -generate/library.fasta
- -generate/top.fasta
+- generate/library.fasta
+- generate/top.fasta
 
 - generate/library.fasta — final 50,000-sequence library
 - generate/top.fasta — final ranked Top-100 candidates
