@@ -92,7 +92,8 @@ PersiPep-AMP-Challenge-2027/
 │
 ├── checkpoint/
 │   ├── model/
-│   ├── pca_decomposer.joblib
+│   │   ├── model/
+│   │   └── pca_decomposer.joblib
 │   ├── LICENSE-HydrAMP
 │   └── README.md
 │
@@ -106,6 +107,20 @@ PersiPep-AMP-Challenge-2027/
 ├── generate/
 │   ├── library.fasta
 │   └── top.fasta
+│
+├── inference/
+│   └── hydramp/
+│       ├── .python-version
+│       ├── LICENSE
+│       ├── README.md
+│       ├── STARTER_KIT_COMMIT.txt
+│       ├── UPSTREAM_README.md
+│       ├── pyproject.toml
+│       ├── uv.lock
+│       └── src/
+│           └── hydramp_starter_kit/
+│               ├── __init__.py
+│               └── generate.py
 │
 ├── notebooks/
 │   ├── 00_cleaning/
@@ -225,6 +240,25 @@ The pretrained HydrAMP checkpoint used for generation is included under:
 ```text
 checkpoint/
 ```
+
+A repository-side HydrAMP inference subproject is preserved under:
+
+```text
+inference/hydramp/
+```
+
+This subproject vendors the HydrAMP starter-kit snapshot used for PersiPep, including its isolated Python version, `pyproject.toml`, `uv.lock`, license, provenance files, and the `generate_broad_spectrum` inference implementation under `src/hydramp_starter_kit/generate.py`.
+
+The HydrAMP inference package was smoke-tested independently in an isolated Python 3.8 environment using the preserved checkpoint resources and the official `data/antibacterial.fasta`. The test generated 100 candidates with seed 42 and successfully produced a filtered Top-1 candidate:
+
+```bash
+uv run --no-sync generate_broad_spectrum \
+  --n-sequences 100 \
+  --top-k 1 \
+  --seed 42
+```
+
+The inference script forces the non-interactive Matplotlib `Agg` backend before importing HydrAMP so that it runs correctly in notebook/headless environments.
 
 Five independent production batches were generated using the starting seeds:
 
@@ -702,6 +736,7 @@ The reproducibility documentation records:
 - generation seeds;
 - model provenance;
 - checkpoint information;
+- preserved HydrAMP inference snapshot and smoke-test command;
 - software environments;
 - server execution commands;
 - Google Colab stages;
@@ -716,6 +751,8 @@ The reproducibility documentation records:
 - official verifier validation.
 
 The original scientific workflow uses multiple environments because its computational components have different dependency, hardware, and external-service requirements.
+
+HydrAMP model inference is additionally preserved as an isolated repository subproject under `inference/hydramp/`. That subproject was smoke-tested with the preserved model/PCA resources in Python 3.8 and successfully generated a 100-sequence test library and filtered Top-1 output with seed 42.
 
 The root `uv run generate` command therefore serves as a deterministic challenge-packaging and reconstruction layer: it rebuilds the exact submitted FASTA files from the preserved final-selection artifacts. Full stage-by-stage scientific provenance remains documented separately in `REPRODUCIBILITY.md`.
 
@@ -836,6 +873,20 @@ The HydrAMP checkpoint used for PersiPep generation is preserved under:
 checkpoint/
 ```
 
+The corresponding repository-side inference snapshot is preserved under:
+
+```text
+inference/hydramp/
+```
+
+It records starter-kit commit:
+
+```text
+7804df862872ccc6d09fe01c41bafbca194cfa31
+```
+
+and includes the isolated HydrAMP environment plus `src/hydramp_starter_kit/generate.py`. A smoke test of this inference snapshot successfully loaded the preserved model/PCA resources, generated 100 sequences with seed 42, and wrote both a library FASTA and a Top-1 FASTA after biological and reference-similarity filtering.
+
 HydrAMP and associated pretrained model files remain subject to the licensing terms of the upstream project.
 
 ---
@@ -891,6 +942,12 @@ Preserved final-selection artifacts used for deterministic challenge-output reco
 
 ```text
 artifacts/final_selection/
+```
+
+HydrAMP inference code, isolated environment metadata, upstream provenance, and usage notes are stored under:
+
+```text
+inference/hydramp/
 ```
 
 ---
