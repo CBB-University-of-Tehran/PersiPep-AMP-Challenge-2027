@@ -1,56 +1,200 @@
-# PersiPep — HydrAMP inference subproject
+# PersiPep HydrAMP Inference
 
-This directory preserves the HydrAMP starter-kit inference code used for the PersiPep AMP Challenge workflow as a separate Python 3.8 subproject.
+This directory preserves the repository-side HydrAMP inference environment used for PersiPep model provenance and executable smoke testing.
 
-## Provenance
+It is intentionally isolated from the root challenge environment because the HydrAMP starter stack uses Python 3.8 and older TensorFlow/Keras dependencies, while the root PersiPep challenge package uses a separate environment.
 
-- Upstream starter kit: `https://github.com/szczurek-lab/hydramp-starter-kit`
-- Starter-kit commit: `7804df862872ccc6d09fe01c41bafbca194cfa31`
-- HydrAMP source revision pinned by the starter kit: `6590d2f4c2963f25d30669052a4c4a857e0e7279`
-- Upstream license: MIT (`LICENSE`)
-- The vendored `src/hydramp_starter_kit/generate.py`, `pyproject.toml`, `uv.lock`, and `.python-version` are copied from that starter-kit snapshot.
-
-The uploaded upstream ZIP used to create this bundle identifies commit `7804df862872ccc6d09fe01c41bafbca194cfa31` in its archive metadata.
-
-## PersiPep model resources
-
-To avoid duplicating large files, this subproject uses the model resources already stored at the repository root:
+## Location
 
 ```text
-checkpoint/model/
-checkpoint/pca_decomposer.joblib
-data/antibacterial.fasta
+inference/hydramp/
+```
+
+Main inference implementation:
+
+```text
+inference/hydramp/src/hydramp_starter_kit/generate.py
+```
+
+## Upstream provenance
+
+HydrAMP starter kit:
+
+```text
+https://github.com/szczurek-lab/hydramp-starter-kit
+```
+
+Starter-kit revision used:
+
+```text
+7804df862872ccc6d09fe01c41bafbca194cfa31
+```
+
+Underlying HydrAMP package revision:
+
+```text
+6590d2f4c2963f25d30669052a4c4a857e0e7279
+```
+
+The starter-kit revision is also recorded in:
+
+```text
+STARTER_KIT_COMMIT.txt
+```
+
+The upstream README snapshot is preserved as:
+
+```text
+UPSTREAM_README.md
 ```
 
 ## Environment
 
-HydrAMP has an older dependency stack and is therefore intentionally isolated from the root PersiPep Python 3.10 environment. This subproject declares Python 3.8 through `.python-version` and its own `pyproject.toml` / `uv.lock`.
+The isolated HydrAMP subproject uses:
+
+```text
+Python 3.8
+uv
+```
+
+Environment files:
+
+```text
+.python-version
+pyproject.toml
+uv.lock
+```
+
+From the repository root, create the HydrAMP environment with:
+
+```bash
+cd inference/hydramp
+uv sync
+```
+
+## PersiPep model resources
+
+To avoid duplicating large model files, this subproject uses the HydrAMP resources stored at the repository root.
+
+Current repository layout:
+
+```text
+checkpoint/
+└── model/
+    ├── model/
+    │   ├── model_config.json
+    │   └── layers/
+    └── pca_decomposer.joblib
+
+data/
+└── antibacterial.fasta
+```
+
+The inference entry point resolves these paths automatically from the repository root:
+
+```text
+checkpoint/model/model
+checkpoint/model/pca_decomposer.joblib
+data/antibacterial.fasta
+```
+
+The relevant defaults in `src/hydramp_starter_kit/generate.py` are:
+
+```python
+REPO_ROOT = Path(__file__).resolve().parents[4]
+
+MODEL_PATH = REPO_ROOT / "checkpoint" / "model" / "model"
+DECOMPOSER_PATH = REPO_ROOT / "checkpoint" / "model" / "pca_decomposer.joblib"
+ANTIBACTERIAL_FASTA = REPO_ROOT / "data" / "antibacterial.fasta"
+```
+
+The script also forces the non-interactive Matplotlib backend before importing HydrAMP:
+
+```python
+os.environ["MPLBACKEND"] = "Agg"
+```
+
+This avoids notebook/headless-environment failures caused by an inherited interactive Matplotlib backend.
 
 ## Inference smoke test
 
-From `inference/hydramp/`, create the HydrAMP environment and generate a small deterministic test library using the root repository resources:
+The repository-side HydrAMP package was smoke-tested successfully in an isolated Python 3.8 environment using the preserved model, PCA decomposer, and official antibacterial reference.
+
+From the repository root:
 
 ```bash
+cd inference/hydramp
 uv sync
 
-uv run generate_broad_spectrum \
+uv run --no-sync generate_broad_spectrum \
   --n-sequences 100 \
-  --top-k 10 \
-  --seed 42 \
-  --model-path ../../checkpoint/model \
-  --decomposer-path ../../checkpoint/pca_decomposer.joblib \
-  --antibacterial-fasta ../../data/antibacterial.fasta
+  --top-k 1 \
+  --seed 42
 ```
 
-The command writes:
+The successful test generated 100 sequences with seed 42 and wrote:
 
 ```text
 generate_broad_spectrum/library.fasta
 generate_broad_spectrum/top.fasta
 ```
 
-For the historical PersiPep production run, HydrAMP was executed on the university server in five 50,000-target batches with starting seeds `42, 44, 46, 48, 50`. See the root `REPRODUCIBILITY.md` for the actual production workflow. This inference subproject preserves executable model-inference code and does **not** claim that the root `uv run generate` command reruns the complete multi-environment scientific pipeline.
+The Top-1 output was produced after the HydrAMP biological filters and the reference-similarity filter were applied.
 
-## Upstream documentation
+The small `--top-k 1` smoke test is only an executable validation of the preserved HydrAMP inference package. It is not a rerun of the full PersiPep production workflow.
 
-The original starter-kit README is retained verbatim as `UPSTREAM_README.md`.
+## Production generation provenance
+
+PersiPep production generation used five HydrAMP batches with starting seeds:
+
+```text
+42
+44
+46
+48
+50
+```
+
+Each batch targeted 50,000 sequences, producing an initial 250,000-sequence raw pool before the downstream PersiPep cleaning, scoring, filtering, diversity analysis, and final ranking stages.
+
+The full production workflow is documented in the repository-level:
+
+```text
+REPRODUCIBILITY.md
+```
+
+## Important distinction from the final PersiPep submission
+
+Outputs generated by this isolated HydrAMP subproject are written under:
+
+```text
+inference/hydramp/generate_broad_spectrum/
+```
+
+These files are HydrAMP inference outputs and are **not** the final PersiPep challenge submission files.
+
+The final PersiPep challenge-facing sequences are located at the repository root:
+
+```text
+generate/library.fasta
+generate/top.fasta
+```
+
+Those final files correspond to the completed multi-stage PersiPep workflow and are reconstructed deterministically by the root command:
+
+```bash
+uv run generate
+```
+
+from the preserved final-selection artifacts:
+
+```text
+artifacts/final_selection/STEP12_FINAL_LIBRARY_50K_FULL.zip
+artifacts/final_selection/STEP12_FINAL_TOP100_FULL.csv
+```
+
+## Licensing
+
+The PersiPep repository is released under the repository-level BSD 3-Clause License.
+
+HydrAMP source code, pretrained model resources, and other third-party components remain subject to their original upstream license terms. The upstream HydrAMP license is preserved with the corresponding repository resources.
