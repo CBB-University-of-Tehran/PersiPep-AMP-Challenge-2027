@@ -57,7 +57,6 @@ def _read_fasta_sequences(path: Path) -> list[str]:
             if parts:
                 sequences.append("".join(parts))
                 parts = []
-
         else:
             parts.append(line.upper())
 
@@ -71,7 +70,6 @@ def _write_fasta(
     sequences: list[str],
     path: Path,
 ) -> None:
-
     with open(path, "w") as f:
         for i, seq in enumerate(
             sequences,
@@ -100,7 +98,6 @@ def generate_library(
     seed: int,
     references: set[str],
 ) -> dict[str, float]:
-
     """Accumulate unique valid HydrAMP sequences.
 
     Each accepted sequence is mapped to its HydrAMP MIC score.
@@ -115,7 +112,6 @@ def generate_library(
     round_seed = seed
 
     while len(collected) < n_sequences:
-
         need = (
             n_sequences
             - len(collected)
@@ -137,7 +133,6 @@ def generate_library(
         # The "mic" field represents the predicted
         # probability of low MIC; higher is better.
         for item in batch:
-
             seq = str(
                 item["sequence"]
             )
@@ -173,7 +168,6 @@ def generate_library(
 def _passes_biological_filters(
     seq: str,
 ) -> bool:
-
     """Apply HydrAMP biological synthesizability filters.
 
     Criteria follow the HydrAMP filtering implementation:
@@ -212,7 +206,6 @@ def select_top(
     top_k: int,
     references: set[str],
 ) -> list[str]:
-
     """Select ranked HydrAMP candidates.
 
     Candidates are ranked by HydrAMP MIC score and must:
@@ -234,7 +227,6 @@ def select_top(
     top: list[str] = []
 
     for seq in ranked:
-
         if not _passes_biological_filters(
             seq
         ):
@@ -246,17 +238,14 @@ def select_top(
                 ref,
             )
             <= SIMILARITY_THRESHOLD
-
             for ref in references
         ):
-
             top.append(seq)
 
             if len(top) == top_k:
                 break
 
     if len(top) < top_k:
-
         raise RuntimeError(
             f"Only {len(top)} of "
             f"{top_k} sequences passed "
@@ -270,7 +259,6 @@ def select_top(
 
 
 def main():
-
     parser = argparse.ArgumentParser(
         description=__doc__
     )
@@ -317,9 +305,7 @@ def main():
     )
 
     for path in required_paths:
-
         if not Path(path).exists():
-
             sys.exit(
                 "ERROR: required path not found "
                 f"(cwd: {os.getcwd()}): "
